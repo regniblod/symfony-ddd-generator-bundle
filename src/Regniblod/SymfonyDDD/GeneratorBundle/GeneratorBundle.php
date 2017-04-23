@@ -1,6 +1,6 @@
 <?php
 
-namespace Invoicing\Sdk\Application\Bundle\SdkBundle;
+namespace Regniblod\SymfonyDDD\GeneratorBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
