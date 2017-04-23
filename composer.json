@@ -10,7 +10,7 @@
         }
     ],
     "autoload": {
-      "psr-4": { "Regniblod\\SymfonyDDD\\GeneratorBundle\\": "src/Regniblod/SymfonyDDD/GeneratorBundle" }
+      "psr-4": { "Regniblod\\SymfonyDDD\\GeneratorBundle\\": "src/Regniblod/SymfonyDDD/GeneratorBundle/" }
     },
     "minimum-stability": "stable",
     "require": {
