@@ -1,0 +1,29 @@
+{
+    "name": "regniblod/symfony-ddd-generator-bundle",
+    "description": "Generates code for the Symfony DDD edition.",
+    "license": "MIT",
+    "type": "symfony-bundle",
+    "authors": [
+        {
+            "name": "Albert Munoz",
+            "email": "regniblod@gmail.com"
+        }
+    ],
+    "autoload": {
+      "psr-4": { "Regniblod\\SymfonyDDD\\GeneratorBundle\\": "src/Regniblod/SymfonyDDD/GeneratorBundle" }
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=5.4.0",
+        "symfony/console": "~2.7|~3.0",
+        "symfony/framework-bundle": "~2.7|~3.0",
+        "symfony/process": "~2.7|~3.0",
+        "sensio/generator-bundle": "~3.0"
+    },
+    "suggest": {
+        "regniblod/symfony-ddd-edition": "The bundle generates code for this Symfony distribution."
+    },
+    "config": {
+      "sort-packages": true
+    }
+}
