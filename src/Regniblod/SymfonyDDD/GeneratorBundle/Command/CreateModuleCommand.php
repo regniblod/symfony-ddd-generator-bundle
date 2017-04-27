@@ -2,16 +2,20 @@
 
 namespace Regniblod\SymfonyDDD\GeneratorBundle\Command;
 
+use Regniblod\SymfonyDDD\GeneratorBundle\Helper\PathHelper;
+use Regniblod\SymfonyDDD\GeneratorBundle\Service\BundleManager;
+use Regniblod\SymfonyDDD\GeneratorBundle\Service\ModuleFilesystem;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
 
 class CreateModuleCommand extends ContainerAwareCommand
 {
-    /** @var Filesystem */
-    private $filesystem;
+    /** @var ModuleFilesystem */
+    private $moduleFilesystem;
 
     /** @var string */
     private $rootDir;
@@ -21,6 +25,12 @@ class CreateModuleCommand extends ContainerAwareCommand
 
     /** @var string */
     private $moduleName;
+
+    /** @var BundleManager */
+    private $bundleManager;
+
+    /** @var SymfonyStyle */
+    private $io;
 
     /**
      * {@inheritdoc}
@@ -39,10 +49,12 @@ class CreateModuleCommand extends ContainerAwareCommand
      */
     public function initialize(InputInterface $input, OutputInterface $output)
     {
-        $this->filesystem = new Filesystem();
         $this->rootDir = $this->getContainer()->getParameter('kernel.root_dir').'/..';
-        $this->projectName = $this->getProjectName();
+        $this->projectName = PathHelper::getProjectName($this->rootDir);
         $this->moduleName = ucfirst(strtolower($input->getArgument('module-name')));
+        $this->bundleManager = new BundleManager(new Filesystem());
+        $this->moduleFilesystem = new ModuleFilesystem(new Filesystem(), $this->rootDir, $this->moduleName);
+        $this->io = new SymfonyStyle($input, $output);
     }
 
     /**
@@ -50,90 +62,76 @@ class CreateModuleCommand extends ContainerAwareCommand
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->io->title(sprintf('Creating new module [%s]', $this->moduleName));
+
         $this->createApplicationDirectory();
         $this->createDomainDirectory();
         $this->createInfrastructureDirectory();
         $this->createTestsDirectory();
+
+        $this->io->success(sprintf('Module [%s] created!', $this->moduleName));
     }
 
     private function createApplicationDirectory()
     {
-        $this->createDir('Application');
-        $this->createDir(sprintf('Application/%sBundle', $this->moduleName));
-        $this->createEmptyDir(sprintf('Application/%sBundle/Command', $this->moduleName));
-        $this->createEmptyDir(sprintf('Application/%sBundle/Controller', $this->moduleName));
-        $this->createDir(sprintf('Application/%sBundle/DependencyInjection', $this->moduleName));
-        $this->createDir(sprintf('Application/%sBundle/Resources', $this->moduleName));
-        $this->createEmptyDir(sprintf('Application/%sBundle/Resources/config/doctrine', $this->moduleName));
-        $this->createEmptyDir(sprintf('Application/%sBundle/Resources/views', $this->moduleName));
+        $this->moduleFilesystem->createSrcDir('Application');
+
+        $bundle = $this->bundleManager->createBundle($this->projectName, $this->moduleName);
+        $this->io->text('Bundle created in '.$bundle->getTargetDirectory());
+        $this->bundleManager->addToKernel($bundle, $this->getContainer()->get('kernel'));
+        $this->io->text('Bundle added to the kernel.');
+        $this->bundleManager->addRouting($this->rootDir, $bundle);
+        $this->io->text('Bundle routing added to app/routing.yml');
+        $this->bundleManager->addDoctrineMapping($this->rootDir, $bundle);
+        $this->io->text('Bundle Doctrine mappings added to app/config.yml');
+        $this->bundleManager->addRepositoryServices($bundle);
+        $this->io->text('Bundle repository services created in '.$bundle->getName().'/Resources/config/repositories.yml');
+        $this->bundleManager->addServices($bundle);
+        $this->io->text('Bundle services created in '.$bundle->getName().'/Resources/config/services.yml');
+
+        $bundlePath = 'Application/Bundle/'.$bundle->getName();
+        $this->moduleFilesystem->createSrcDirWithGitkeep("$bundlePath/Command");
+        $this->moduleFilesystem->createSrcDirWithGitkeep("$bundlePath/Resources/config/doctrine");
+        $this->moduleFilesystem->removeSrcDir("$bundlePath/Tests");
+
+        $this->io->block('Application directories created.');
     }
 
     private function createDomainDirectory()
     {
-        $this->createDir('Domain');
-        $this->createEmptyDir('Domain/Component');
-        $this->createEmptyDir('Domain/Event');
-        $this->createEmptyDir('Domain/Exception');
-        $this->createEmptyDir('Domain/Model');
-        $this->createEmptyDir('Domain/Repository');
-        $this->createEmptyDir('Domain/Service');
-        $this->createEmptyDir('Domain/Value');
+        $this->moduleFilesystem->createSrcDir('Domain');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Component');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Event');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Exception');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Model');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Repository');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Service');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Domain/Value');
+
+        $this->io->block('Domain directories created.');
     }
 
     private function createInfrastructureDirectory()
     {
-        $this->createDir('Infrastructure');
-        $this->createEmptyDir('Infrastructure/Migrations/Doctrine');
-        $this->createEmptyDir('Infrastructure/Repository/Doctrine');
-        $this->createEmptyDir('Infrastructure/Service');
+        $this->moduleFilesystem->createSrcDir('Infrastructure');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Infrastructure/Migrations/Doctrine');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Infrastructure/Repository/Doctrine/ORM');
+        $this->moduleFilesystem->createSrcDirWithGitkeep('Infrastructure/Service');
+
+        $this->io->block('Infrastructure directories created.');
     }
 
     private function createTestsDirectory()
     {
-    }
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Component');
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Event');
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Exception');
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Model');
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Service');
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Domain/Value');
 
-    /**
-     * @param string $dirName
-     */
-    private function createDir($dirName)
-    {
-        $this->filesystem->mkdir($this->getFullPath($dirName));
-    }
+        $this->moduleFilesystem->createTestsDirWithGitkeep('Infrastructure/Service');
 
-    /**
-     * @param string $dirName
-     */
-    private function createEmptyDir($dirName)
-    {
-        $fullPath = $this->getFullPath($dirName);
-
-        $this->filesystem->mkdir($fullPath);
-        $this->filesystem->touch($fullPath.'/.gitkeep');
-    }
-
-    /**
-     * @param string $dirName
-     * @return string
-     */
-    private function getFullPath($dirName)
-    {
-        return sprintf(
-            '%s/src/%s/%s/%s',
-            $this->rootDir,
-            $this->projectName,
-            $this->moduleName,
-            $dirName
-        );
-    }
-
-    /**
-     * @return string
-     */
-    private function getProjectName()
-    {
-        $fullPath = glob($this->rootDir.'/src/*');
-        $pathArray = explode('/', $fullPath[0]);
-
-        return end($pathArray);
+        $this->io->block('Tests directories created.');
     }
 }

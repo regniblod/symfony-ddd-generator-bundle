@@ -1,0 +1,7 @@
+services:
+{% block services %}
+#    {{ project_name | lower }}.{{ module_name | lower }}.repository.{{ entity_name | lower }}:
+#        class: {{ project_name }}\{{ module_name }}\Infrastructure\Repository\Doctrine\ORM\Doctrine{{ entity_name | capitalize }}Repository
+#        factory: ["@doctrine", getRepository]
+#        arguments: [ {{ project_name }}\{{ module_name }}\Domain\Model\{{ entity_name | capitalize }} ]
+{% endblock services %}
